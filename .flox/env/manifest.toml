@@ -1,0 +1,229 @@
+version = 1
+
+## DESIGN PHILOSOPHY -------------------------------------------------
+##
+## ComfyFlox: Complete ComfyUI environment with automatic model setup.
+##
+## Uses comfyui-complete which bundles:
+##   - ComfyUI core application
+##   - All Python dependencies (torch, transformers, etc.)
+##   - All custom nodes (Impact Pack, WAS, rgthree, etc.)
+##   - Setup script that creates runtime directory and installs pip packages
+##
+## RUNTIME DIRECTORY PATTERN:
+##   Since the Nix store is read-only, comfyui-setup creates a runtime
+##   directory at $FLOX_ENV_CACHE/comfyui-runtime that mirrors the store
+##   with writable parts:
+##     - custom_nodes: Copied to ~/comfyui-work/custom_nodes, symlinked back
+##     - web: Copied for writable extensions (rgthree, Custom-Scripts)
+##     - models: Symlinked to ~/comfyui-work/models
+##   ComfyUI runs from this runtime directory with --base-directory.
+##
+## Additional manifest packages override bundled versions (CUDA torch)
+## or provide packages not in nixpkgs (torchsde, kornia).
+##
+## Models must be downloaded manually by the user (not redistributable).
+##
+## --------------------------------------------------------------------
+
+[install]
+comfyui.pkg-path = "flox/comfyui-complete"
+comfyui.pkg-group = "comfyui"
+comfyui.priority = 0
+comfyui.version = "0.15.0"
+
+# Core Python environment
+python.pkg-path = "python313Full"
+python.pkg-group = "runtime"
+python.priority = 5
+
+# Tools
+uv.pkg-path = "uv"
+uv.pkg-group = "tools"
+uv.priority = 5
+
+curl.pkg-path = "curl"
+curl.pkg-group = "tools"
+
+# System libraries
+gcc-unwrapped.pkg-path = "gcc-unwrapped"
+gcc-unwrapped.priority = 6
+gcc-unwrapped.pkg-group = "libraries"
+
+# CUDA torch packages (override bundled CPU torch)
+# define GPU-specific versions of torchvision = get a much smaller torchvision package
+# run: 'flox search flox/torchvision --all' + choose the version for your GPU
+# note: must restrict to 'cuda_torchvision.systems = ["x86_64-linux"] only if using custom torchvision; arm builds coming
+# default is cuda12_8 (PyTorch 2.8.0); change to cuda12_9 or cuda13_0 for PyTorch 2.9.1 and 2.10
+#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm120-avx2"    # requires CUDA driver v12.8!
+#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm89-avx2"    # requires CUDA driver v12.8!
+#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm86-avx2"    # requires CUDA driver v12.8!
+#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm80-avx2"    # requires CUDA driver v12.8!
+#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm75-avx2"    # requires CUDA driver v12.8!
+#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm61-avx2"    # requires CUDA driver v12.8!
+cuda-torchvision.pkg-path = "flox-cuda/python3Packages.torchvision"
+cuda-torchvision.version = "0.24.1"
+cuda-torchvision.systems = ["x86_64-linux", "aarch64-linux"]	# restrict to 'x86_64-linux' only if using custom torch; arm builds coming
+cuda-torchvision.priority = 0
+cuda-torchvision.pkg-group = "torchvision"
+
+# define GPU-specific versions of torchaudio = get a much smaller torchaudio package
+# run: 'flox search flox/torchvision --all' + choose the version for your GPU
+# note: must restrict to 'cuda_torchaudio.systems = ["x86_64-linux"] only if using custom torchaudio; arm builds coming
+# default is cuda12_8 (PyTorch 2.8.0); change to cuda12_9 or cuda13_0 for PyTorch 2.9.1 and 2.10
+#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm120-avx2"    # requires CUDA driver v12.8!
+#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm89-avx2"    # requires CUDA driver v12.8!
+#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm86-avx2"    # requires CUDA driver v12.8!
+#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm80-avx2"    # requires CUDA driver v12.8!
+#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm75-avx2"    # requires CUDA driver v12.8!
+#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm61-avx2"    # requires CUDA driver v12.8!
+cuda-torchaudio.pkg-path = "flox-cuda/python3Packages.torchaudio"
+cuda-torchaudio.version = "2.9.1"
+cuda-torchaudio.systems = ["x86_64-linux", "aarch64-linux"]      # restrict to 'x86_64-linux' only if using custom torch; arm builds coming
+cuda-torchaudio.priority = 3
+cuda-torchaudio.pkg-group = "torchaudio"
+
+# MPS-accelerated torch for aarch64-darwin
+torchvision.pkg-path = "flox/torchvision-python313-darwin-mps"
+torchvision.pkg-group = "torchvision"
+torchvision.priority = 0
+torchvision.systems = ["aarch64-darwin"]
+
+torchaudio.pkg-path = "flox/torchaudio-python313-darwin-mps"
+torchaudio.pkg-group = "torchaudio"
+torchaudio.priority = 2
+torchaudio.systems = ["aarch64-darwin"]
+
+# CPU fallback for other platforms
+cpu-torchvision.pkg-path = "python313Packages.torchvision"
+cpu-torchvision.systems = ["aarch64-linux"]
+cpu-torchvision.priority = 6
+cpu-torchvision.pkg-group = "cpu-torchvision"
+
+cpu-torchaudio.pkg-path = "python313Packages.torchaudio"
+cpu-torchaudio.systems = ["aarch64-linux"]
+cpu-torchaudio.priority = 7
+cpu-torchaudio.pkg-group = "cpu-torchaudio"
+
+# torchsde - not in nixpkgs, required by ComfyUI samplers
+torchsde.pkg-path = "flox/torchsde-python313"
+torchsde.priority = 7
+torchsde.pkg-group = "torchsde"
+
+# CUDA-optimized scientific packages
+cuda-numpy.pkg-path = "flox-cuda/python3Packages.numpy"
+cuda-numpy.systems = ["x86_64-linux", "aarch64-linux"]
+cuda-numpy.priority = 4
+cuda-numpy.pkg-group = "scientific"
+
+cpu-numpy.pkg-path = "python313Packages.numpy"
+cpu-numpy.systems = ["aarch64-darwin"]
+cpu-numpy.priority = 8
+cpu-numpy.pkg-group = "scientific"
+
+cuda-scipy.pkg-path = "flox-cuda/python3Packages.scipy"
+cuda-scipy.systems = ["x86_64-linux", "aarch64-linux"]
+cuda-scipy.priority = 5
+cuda-scipy.pkg-group = "scientific"
+
+cpu-scipy.pkg-path = "python313Packages.scipy"
+cpu-scipy.systems = ["aarch64-darwin"]
+cpu-scipy.priority = 9
+cpu-scipy.pkg-group = "scientific"
+
+# kornia - CUDA computer vision
+kornia.pkg-path = "flox-cuda/python3Packages.kornia"
+kornia.systems = ["x86_64-linux"]
+kornia.priority = 33
+kornia.pkg-group = "kornia"
+awscli2.pkg-path = "awscli2"
+
+
+[vars]
+# Virtual environment configuration
+VIRTUAL_ENV = "$FLOX_ENV_CACHE/venv"
+VIRTUAL_ENV_DISABLE_PROMPT = "1"
+
+# ComfyUI source location (from Flox store package)
+COMFYUI_SOURCE = "$FLOX_ENV/share/comfyui"
+
+# ComfyUI runtime directory (mirrors store with writable custom_nodes)
+# Created by comfyui-setup, used as --base-directory for ComfyUI
+COMFYUI_RUNTIME = "$FLOX_ENV_CACHE/comfyui-runtime"
+COMFYUI_BASE_DIR = "$FLOX_ENV_CACHE/comfyui-runtime"
+
+# ComfyUI directory structure (mutable data)
+COMFYUI_WORK_DIR = "$HOME/comfyui-work"
+COMFYUI_MODELS_DIR = "$HOME/comfyui-work/models"
+COMFYUI_OUTPUT_DIR = "$HOME/comfyui-work/output"
+COMFYUI_INPUT_DIR = "$HOME/comfyui-work/input"
+COMFYUI_USER_DIR = "$HOME/comfyui-work/user"
+COMFYUI_TEMP_DIR = "$FLOX_ENV_CACHE/temp"
+COMFYUI_VENV_DIR = "$FLOX_ENV_CACHE/venv"
+COMFYUI_EXTRA_MODEL_PATHS = "$HOME/comfyui-work/extra_model_paths.yaml"
+COMFYUI_DATABASE_URL = "sqlite:///$HOME/comfyui-work/user/comfyui.db"
+COMFYUI_LISTEN = "0.0.0.0"
+COMFYUI_PORT = "8188"
+
+# Python environment caching
+UV_CACHE_DIR = "$FLOX_ENV_CACHE/uv"
+PIP_CACHE_DIR = "$FLOX_ENV_CACHE/pip"
+
+# Suppress warning pending update by upstream maintainers
+PYTHONWARNINGS = "ignore::requests.exceptions.RequestsDependencyWarning"
+
+[hook]
+on-activate = '''
+# Increase file descriptor limit (macOS defaults to 256, too low for ComfyUI)
+ulimit -n 10240
+
+# Download models if get-models is available (Flox internal only)
+# External users must download models manually
+if [[ -x "$FLOX_ENV/bin/get-models" ]]; then
+  # Check if models are already installed
+  models_installed() {
+    [[ -f "$HOME/comfyui-work/models/checkpoints/sd_xl_base_1.0.safetensors" ]] && \
+    [[ -f "$HOME/comfyui-work/models/unet/flux1-dev.safetensors" ]] && \
+    [[ -f "$HOME/comfyui-work/models/clip/t5xxl_fp16.safetensors" ]]
+  }
+
+  if ! models_installed; then
+    echo ""
+    echo "Models not found. Downloading from Flox R2 bucket..."
+    echo "This is a one-time download (~59GB) and may take a while."
+    echo ""
+    "$FLOX_ENV/bin/get-models"
+  fi
+fi
+
+# Setup ComfyUI (creates venv, installs pip packages)
+"$FLOX_ENV/bin/comfyui-setup"
+'''
+
+
+[profile]
+bash = '''
+if [ -d "$FLOX_ENV_CACHE/venv/bin" ]; then
+  export PATH="$FLOX_ENV_CACHE/venv/bin:$PATH"
+fi
+'''
+zsh = '''
+if [ -d "$FLOX_ENV_CACHE/venv/bin" ]; then
+  export PATH="$FLOX_ENV_CACHE/venv/bin:$PATH"
+fi
+'''
+fish = '''
+if test -d "$FLOX_ENV_CACHE/venv/bin"
+    set -gx PATH "$FLOX_ENV_CACHE/venv/bin" $PATH
+end
+'''
+
+
+[services]
+[services.comfyui]
+command = "comfyui-start"
+
+
+[options]
+systems = ["aarch64-darwin", "aarch64-linux", "x86_64-linux"]
+cuda-detection = true

@@ -19,18 +19,29 @@ version = 1
 ##     - models: Symlinked to ~/comfyui-work/models
 ##   ComfyUI runs from this runtime directory with --base-directory.
 ##
-## Additional manifest packages override bundled versions (CUDA torch)
-## or provide packages not in nixpkgs (torchsde, kornia).
+## STORE-PATH TESTING:
+##   When testing local builds via store-path, the bundled pythonEnv uses
+##   nixpkgs packages (CPU torch, scipy, numpy). The manifest provides CUDA
+##   torch via flox-cuda, but must NOT provide scipy/numpy/torchvision from
+##   flox-cuda — those collide with the bundled nixpkgs versions in the Flox
+##   profile merge, creating Frankenstein packages with mixed .py/.so files.
+##   The comfyui-start script handles CUDA torch priority via PYTHONPATH.
 ##
 ## Models must be downloaded manually by the user (not redistributable).
 ##
 ## --------------------------------------------------------------------
 
 [install]
+# Local build testing via store-path:
+# Build with: cd /home/daedalus/dev/builds/build-comfyui && flox build comfyui-complete
+# Then update the store-path below with: readlink -f result-comfyui-complete
+#
+# To switch to local build for testing, comment out pkg-path and use store-path:
+# comfyui.store-path = "/nix/store/<hash>-comfyui-complete-<version>"
 comfyui.pkg-path = "flox/comfyui-complete"
 comfyui.pkg-group = "comfyui"
 comfyui.priority = 0
-comfyui.version = "0.15.0"
+comfyui.version = "0.15.0+f04d744"
 
 # Core Python environment
 python.pkg-path = "python313Full"
@@ -50,92 +61,52 @@ gcc-unwrapped.pkg-path = "gcc-unwrapped"
 gcc-unwrapped.priority = 6
 gcc-unwrapped.pkg-group = "libraries"
 
-# CUDA torch packages (override bundled CPU torch)
-# define GPU-specific versions of torchvision = get a much smaller torchvision package
-# run: 'flox search flox/torchvision --all' + choose the version for your GPU
-# note: must restrict to 'cuda_torchvision.systems = ["x86_64-linux"] only if using custom torchvision; arm builds coming
-# default is cuda12_8 (PyTorch 2.8.0); change to cuda12_9 or cuda13_0 for PyTorch 2.9.1 and 2.10
-#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm120-avx2"    # requires CUDA driver v12.8!
-#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm89-avx2"    # requires CUDA driver v12.8!
-#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm86-avx2"    # requires CUDA driver v12.8!
-#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm80-avx2"    # requires CUDA driver v12.8!
-#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm75-avx2"    # requires CUDA driver v12.8!
-#cuda-torchvision.pkg-path = "flox/torchvision-python313-cuda12_8-sm61-avx2"    # requires CUDA driver v12.8!
+# CUDA torch packages
+# These provide CUDA-enabled torch as a dependency. The comfyui-start script
+# uses PYTHONPATH to prioritize these over the bundled CPU torch.
+#
+# IMPORTANT: Only torch/torchvision/torchaudio from flox-cuda. Do NOT add
+# cuda-scipy or cuda-numpy here — they collide with the bundled nixpkgs
+# versions and create broken merged directories in the Flox profile.
 cuda-torchvision.pkg-path = "flox-cuda/python3Packages.torchvision"
-cuda-torchvision.version = "0.24.1"
-cuda-torchvision.systems = ["x86_64-linux", "aarch64-linux"]	# restrict to 'x86_64-linux' only if using custom torch; arm builds coming
+cuda-torchvision.version = "0.25.0"
+cuda-torchvision.systems = ["x86_64-linux", "aarch64-linux"]
 cuda-torchvision.priority = 0
 cuda-torchvision.pkg-group = "torchvision"
 
-# define GPU-specific versions of torchaudio = get a much smaller torchaudio package
-# run: 'flox search flox/torchvision --all' + choose the version for your GPU
-# note: must restrict to 'cuda_torchaudio.systems = ["x86_64-linux"] only if using custom torchaudio; arm builds coming
-# default is cuda12_8 (PyTorch 2.8.0); change to cuda12_9 or cuda13_0 for PyTorch 2.9.1 and 2.10
-#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm120-avx2"    # requires CUDA driver v12.8!
-#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm89-avx2"    # requires CUDA driver v12.8!
-#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm86-avx2"    # requires CUDA driver v12.8!
-#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm80-avx2"    # requires CUDA driver v12.8!
-#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm75-avx2"    # requires CUDA driver v12.8!
-#cuda-torchaudio.pkg-path = "flox/torchaudio-python313-cuda12_8-sm61-avx2"    # requires CUDA driver v12.8!
 cuda-torchaudio.pkg-path = "flox-cuda/python3Packages.torchaudio"
-cuda-torchaudio.version = "2.9.1"
-cuda-torchaudio.systems = ["x86_64-linux", "aarch64-linux"]      # restrict to 'x86_64-linux' only if using custom torch; arm builds coming
+cuda-torchaudio.version = "2.10.0"
+cuda-torchaudio.systems = ["x86_64-linux", "aarch64-linux"]
 cuda-torchaudio.priority = 3
 cuda-torchaudio.pkg-group = "torchaudio"
 
-# MPS-accelerated torch for aarch64-darwin
-torchvision.pkg-path = "flox/torchvision-python313-darwin-mps"
+# fallback for other platforms
+torchvision.pkg-path = "python313Packages.torchvision"
+torchvision.systems = ["aarch64-linux", "x86_64-darwin", "aarch64-darwin"]
+torchvision.priority = 6
 torchvision.pkg-group = "torchvision"
-torchvision.priority = 0
-torchvision.systems = ["aarch64-darwin"]
 
-torchaudio.pkg-path = "flox/torchaudio-python313-darwin-mps"
+torchaudio.pkg-path = "python313Packages.torchaudio"
+torchaudio.systems = ["aarch64-linux", "x86_64-darwin", "aarch64-darwin"]
+torchaudio.priority = 7
 torchaudio.pkg-group = "torchaudio"
-torchaudio.priority = 2
-torchaudio.systems = ["aarch64-darwin"]
-
-# CPU fallback for other platforms
-cpu-torchvision.pkg-path = "python313Packages.torchvision"
-cpu-torchvision.systems = ["aarch64-linux"]
-cpu-torchvision.priority = 6
-cpu-torchvision.pkg-group = "cpu-torchvision"
-
-cpu-torchaudio.pkg-path = "python313Packages.torchaudio"
-cpu-torchaudio.systems = ["aarch64-linux"]
-cpu-torchaudio.priority = 7
-cpu-torchaudio.pkg-group = "cpu-torchaudio"
 
 # torchsde - not in nixpkgs, required by ComfyUI samplers
-torchsde.pkg-path = "flox/torchsde-python313"
-torchsde.priority = 7
-torchsde.pkg-group = "torchsde"
+# Using local build with scipy/numpy removed from deps to prevent profile merge conflicts
+# To switch back to published: torchsde.pkg-path = "flox/torchsde-python313"
+torchsde.store-path = "/nix/store/bivhq796mvpi3pgpbp7n43k6j87pig7l-python3.13-torchsde-python313-0.2.6+7f11879"
 
-# CUDA-optimized scientific packages
-cuda-numpy.pkg-path = "flox-cuda/python3Packages.numpy"
-cuda-numpy.systems = ["x86_64-linux", "aarch64-linux"]
-cuda-numpy.priority = 4
-cuda-numpy.pkg-group = "scientific"
+# Scientific packages: use bundled nixpkgs versions from comfyui-complete.
+# Do NOT add flox-cuda scipy/numpy here when using store-path — version
+# differences between nixpkgs and flox-cuda create Frankenstein merges.
+# (The published flox/comfyui-complete is built within flox-cuda so it matches.)
 
-cpu-numpy.pkg-path = "python313Packages.numpy"
-cpu-numpy.systems = ["aarch64-darwin"]
-cpu-numpy.priority = 8
-cpu-numpy.pkg-group = "scientific"
-
-cuda-scipy.pkg-path = "flox-cuda/python3Packages.scipy"
-cuda-scipy.systems = ["x86_64-linux", "aarch64-linux"]
-cuda-scipy.priority = 5
-cuda-scipy.pkg-group = "scientific"
-
-cpu-scipy.pkg-path = "python313Packages.scipy"
-cpu-scipy.systems = ["aarch64-darwin"]
-cpu-scipy.priority = 9
-cpu-scipy.pkg-group = "scientific"
-
-# kornia - CUDA computer vision
+# kornia - CUDA computer vision (no nixpkgs equivalent, safe to add)
 kornia.pkg-path = "flox-cuda/python3Packages.kornia"
 kornia.systems = ["x86_64-linux"]
 kornia.priority = 33
 kornia.pkg-group = "kornia"
+
 awscli2.pkg-path = "awscli2"
 
 
@@ -225,5 +196,5 @@ command = "comfyui-start"
 
 
 [options]
-systems = ["aarch64-darwin", "aarch64-linux", "x86_64-linux"]
+systems = ["aarch64-darwin", "aarch64-linux", "x86_64-linux", "x86_64-darwin"]
 cuda-detection = true

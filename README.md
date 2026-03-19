@@ -307,6 +307,26 @@ comfyui.priority = 0
 comfyui.version = "0.15.0+f04d744"
 ```
 
+## Kubernetes (Imageless / Uncontained)
+
+Starter manifests for deploying ComfyUI on Kubernetes using the Flox Imageless Kubernetes pattern are in `k8s/`. No container image build is needed -- the Flox containerd shim pulls the environment from FloxHub at pod startup.
+
+**Prerequisites**: Flox containerd shim installed on nodes, `RuntimeClass "flox"` applied to the cluster, NVIDIA GPU device plugin. See the [Flox Imageless Kubernetes docs](https://flox.dev/docs/kubernetes/) for cluster setup.
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/pvc.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+```
+
+Before deploying, review the manifests and adjust:
+- **`k8s/pvc.yaml`**: Set `storageClassName` for your cluster
+- **`k8s/deployment.yaml`**: CPU/memory requests, HF_TOKEN secret (for gated models), PVC mount path if not running as root
+- **`k8s/service.yaml`**: Change to `LoadBalancer`/`NodePort` or add an Ingress for external access
+
+Models must be pre-loaded onto the PVC or downloaded after the pod starts. First activation takes several minutes (venv creation, pip installs).
+
 ## Related repositories
 
 - [build-comfyui](https://github.com/barstoolbluz/build-comfyui) -- Build repo: Nix derivation, custom nodes, patches, Python deps, build versioning

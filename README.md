@@ -222,7 +222,7 @@ All variables are defined in `[vars]` unless noted otherwise.
 
 | Name | Source | Details | Purpose |
 |---|---|---|---|
-| comfyui | store-path (comfyui-complete) | 0.15.0+f04d744 | ComfyUI + all deps + custom nodes + scripts |
+| comfyui | flox/comfyui-complete | 0.15.0+f04d744 | ComfyUI + all deps + custom nodes + scripts |
 | python | python313Full | priority 5 | Python 3.13 runtime |
 | uv | uv | priority 5 | Fast Python package installer |
 | curl | curl | -- | HTTP utility |
@@ -295,16 +295,16 @@ comfyui.store-path = "/nix/store/<hash>-comfyui-complete-0.15.0+<rev>"
 flox activate
 ```
 
-### Switching to a published package
+### Switching back to a published package
 
-In `manifest.toml`, comment out the store-path line and uncomment the pkg-path lines:
+If you switched to a store-path for testing, revert to the published package:
 
 ```toml
 # comfyui.store-path = "/nix/store/..."
 comfyui.pkg-path = "flox/comfyui-complete"
 comfyui.pkg-group = "comfyui"
 comfyui.priority = 0
-comfyui.version = "0.15.0"
+comfyui.version = "0.15.0+f04d744"
 ```
 
 ## Related repositories
